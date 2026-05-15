@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PodcastBridge Remote</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-center p-6">
+    
+    <div class="w-full max-w-md bg-slate-800 p-8 rounded-3xl shadow-2xl border border-slate-700">
+        <h1 class="text-3xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+            PodcastBridge
+        </h1>
+        <p class="text-slate-400 text-sm mb-6">Send scripts to your home PC</p>
+
+        <textarea id="scriptInput" 
+            class="w-full h-48 p-4 bg-slate-900 rounded-2xl border border-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none text-white placeholder-slate-600 transition-all"
+            placeholder="What should the AI say today?"></textarea>
+        
+        <button onclick="sendToPC()" id="mainBtn" 
+            class="w-full mt-6 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 active:scale-95 transition-all p-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-900/20">
+            Generate on PC
+        </button>
+        
+        <div id="statusBox" class="mt-8 p-4 rounded-xl bg-slate-900/50 border border-slate-700 hidden">
+            <p id="statusText" class="text-center text-sm font-mono text-blue-400">Waiting for PC...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Your specific Firebase Config
+        const firebaseConfig = {
+          apiKey: "AIzaSyBhAWwzuLXgzXUCMeMFBYum9okdnyYhRwI",
+          authDomain: "podcastbridge-443be.firebaseapp.com",
+          projectId: "podcastbridge-443be",
+          storageBucket: "podcastbridge-443be.firebasestorage.app",
+          messagingSenderId: "819275917662",
+          appId: "1:819275917662:web:653fb3d08abb1c9b34c7cf"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.sendToPC = async () => {
+            const text = document.getElementById('scriptInput').value;
+            if(!text) return alert("Type something first!");
+
+            const btn = document.getElementById('mainBtn');
+            const statusBox = document.getElementById('statusBox');
+            const statusText = document.getElementById('statusText');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            statusBox.classList.remove('hidden');
+            statusText.innerText = "🛰️ Sending to Home PC...";
+
+            try {
+                const docRef = await addDoc(collection(db, "jobs"), {
+                    text: text,
+                    status: "pending",
+                    timestamp: Date.now()
+                });
+
+                // Watch for the PC to update the status
+                onSnapshot(doc(db, "jobs", docRef.id), (snapshot) => {
+                    const data = snapshot.data();
+                    if (data.status === "completed") {
+                        statusText.innerText = "✅ Saved to Laptop Folder!";
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50');
+                        document.getElementById('scriptInput').value = "";
+                    }
+                });
+            } catch (e) {
+                alert("Error: " + e.message);
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
